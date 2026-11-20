@@ -13,9 +13,11 @@ pnpm lan:rooms
 pnpm lan:web
 ```
 
-Players open `http://<ip>:3000` (`lan:web` prints it).
+Players open `http://<ip>:3100` (`lan:web` prints it). The web port is 3100 so it doesn't clash
+with anything on 3000; `LAN_PORT=…` picks another — set it the same in **both** terminals, since
+the room server only accepts that origin.
 
-- `scripts/lan.mjs` finds the LAN address (the private IPv4 the default route uses; `LAN_IP=…` overrides) and runs
+- `scripts/lan.mjs` finds the LAN address (the private IPv4 the default route uses; `LAN_IP=…` overrides) and the web port (3100; `LAN_PORT=…` overrides) and runs
   `rooms:dev` / `dev` on `0.0.0.0` with `ALLOWED_ORIGINS`, `PUBLIC_URL` and
   `NEXT_PUBLIC_ROOMS_URL` pointed at it. One child process each, no supervisor.
 - `allowedDevOrigins` in `next.config.ts` lets private-range origins load the dev server.

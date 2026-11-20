@@ -1,12 +1,13 @@
 // `pnpm lan:rooms` / `pnpm lan:web`: the room server or the web app, reachable from the LAN
 // (docs/lan.md). Finds this machine's LAN address so nobody types it. Run each in its own
-// terminal. LAN_IP=… picks the address when the machine has several.
+// terminal. LAN_IP=… picks the address when the machine has several; LAN_PORT=… the web
+// port (default 3100, clear of a `pnpm dev` on 3000 — set it the same in both terminals).
 
 import { spawn } from 'node:child_process'
 import dgram from 'node:dgram'
 import os from 'node:os'
 
-const WEB = 3000
+const WEB = Number(process.env.LAN_PORT) || 3100
 const ROOMS = 8787
 const PRIVATE = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/
 
