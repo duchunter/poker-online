@@ -25,6 +25,7 @@ cosmetics, multiplayer); see [brand.md](./brand.md).
 | [review.md](./review.md) | Session review and the report — the coaching that reads more than one hand |
 | [membership.md](./membership.md) | What is paid and what is free, the gate, and the rules tests enforce |
 | [multiplayer.md](./multiplayer.md) | Private rooms and quick match: the room server, the authority model, camera and mic, and the runbook to switch it on |
+| [lan.md](./lan.md) | Hosting multiplayer on your local network so others can join (development only) |
 | [stripe.md](./stripe.md) | How payment is wired (Edge Functions, webhook, portal) and the runbook to switch it on |
 | [smoke-test-membership.md](./smoke-test-membership.md) | The by-hand checklist for the membership build — the part CI cannot see |
 | [design.md](./design.md) | Design system: theme tokens, colour, typography, motion, sound, components |

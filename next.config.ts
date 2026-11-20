@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
   // Pure static export ("out/") — the app is fully client-side (local-first,
   // no server), so it deploys to Cloudflare Pages as plain files.
   output: 'export',
+  // Dev only: let other machines on the LAN load the dev server (hot reload and
+  // dev assets are refused from unknown origins), to try multiplayer together.
+  allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '172.*.*.*'],
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
     NEXT_PUBLIC_BUILD_ID: buildId,

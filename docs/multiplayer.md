@@ -244,7 +244,8 @@ players without accounts, run this in each browser's console, then reload:
 localStorage.setItem('pip.roomsDevToken', 'dev:alice:member')
 ```
 
-The client reads that key only in a development build.
+The client reads that key only in a development build. To play with others on your network,
+see [lan.md](./lan.md).
 
 ## Runbook: switching it on
 

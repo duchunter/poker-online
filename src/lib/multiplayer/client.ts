@@ -33,7 +33,16 @@ const DEV_TOKEN_KEY = 'pip.roomsDevToken'
 function devToken(): string | null {
   if (process.env.NODE_ENV !== 'development') return null
   try {
-    return localStorage.getItem(DEV_TOKEN_KEY)
+    const stored = localStorage.getItem(DEV_TOKEN_KEY)
+    // `pnpm lan`: every browser makes itself a member on first load, so anybody
+    // can host. A token set by hand as `:free` is lifted to member too.
+    if (process.env.NEXT_PUBLIC_ROOMS_DEV_AUTO === '1' && !stored?.endsWith(':member')) {
+      const id = stored?.split(':')[1] ?? `p${Math.random().toString(36).slice(2, 8)}`
+      const token = `dev:${id}:member`
+      localStorage.setItem(DEV_TOKEN_KEY, token)
+      return token
+    }
+    return stored
   } catch {
     return null
   }

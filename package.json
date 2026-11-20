@@ -23,6 +23,8 @@
     "test:sync-config": "node scripts/assert-sync-config.mjs out",
     "typecheck": "tsc --noEmit && tsc --noEmit -p rooms",
     "rooms:dev": "wrangler dev -c rooms/wrangler.jsonc",
+    "lan:rooms": "node scripts/lan.mjs rooms",
+    "lan:web": "node scripts/lan.mjs web",
     "rooms:deploy": "wrangler deploy -c rooms/wrangler.jsonc",
     "rooms:vapid": "node scripts/vapid-keys.mjs",
     "sim": "tsx scripts/sim.ts",
