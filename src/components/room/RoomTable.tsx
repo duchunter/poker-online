@@ -102,6 +102,16 @@ export function RoomTable({
   const now = useMinuteClock(slow)
   const [watching, setWatching] = useState(false)
   const [marked, setMarked] = useState<number[]>([])
+  /**
+   * The cards you have face up, and in which hand. Yours are dealt face down;
+   * a tap turns one over and the next tap turns it back down. A new hand deals
+   * them down again. A hand you are catching up on is already over, so it plays
+   * face up.
+   */
+  const [lookedAt, setLookedAt] = useState<{ hand: number; cards: number[] }>({
+    hand: -1,
+    cards: [],
+  })
   /** The seat whose camera is open large, if any. */
   const [big, setBig] = useState<string | null>(null)
   /** The seat the host has tapped, for its menu. */
@@ -114,6 +124,12 @@ export function RoomTable({
   const meta = new Map(view.players.map((p) => [p.id, p]))
   const me = view.you ? meta.get(view.you) : undefined
   const hero = hand.players.find((p) => p.id === view.you)
+  const turned = catching
+    ? (hero?.hole.map((_, i) => i) ?? [])
+    : lookedAt.hand === handIndex
+      ? lookedAt.cards
+      : []
+  const cardsUp = hero !== undefined && hero.hole.every((_, i) => turned.includes(i))
 
   // You at the near rail, everybody else round the table in seat order from
   // your left. Out of the hand (busted), you watch with every seat on the arc.
@@ -376,6 +392,18 @@ export function RoomTable({
                   onToggle={(i) =>
                     setMarked((m) => (m.includes(i) ? m.filter((x) => x !== i) : [...m, i]))
                   }
+                  concealed={{
+                    back: cardBack,
+                    revealed: turned,
+                    onFlip: (i) =>
+                      setLookedAt((l) => {
+                        const cards = l.hand === handIndex ? l.cards : []
+                        return {
+                          hand: handIndex,
+                          cards: cards.includes(i) ? cards.filter((c) => c !== i) : [...cards, i],
+                        }
+                      }),
+                  }}
                 />
               </div>
               <div className={cn('flex', isMobile ? 'flex-1 basis-0' : 'w-44')}>
@@ -385,6 +413,7 @@ export function RoomTable({
                   hand={hand}
                   equity={equity}
                   hideOdds={!showOdds}
+                  concealed={!cardsUp}
                   isButton={hero.id === buttonId}
                   isActive={activeId === hero.id}
                   corners={{

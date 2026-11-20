@@ -19,6 +19,7 @@ import { createContext, useContext, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import { DealtCard, PlayingCard, type CardSize } from '@/components/PlayingCard'
+import type { CardBackDesign } from '@/config/cardBacks'
 import { evaluateHand } from '@/lib/poker/handEval'
 import type { HandState, Player } from '@/lib/poker/engine'
 import { nicknameFor } from '@/config/handNames'
@@ -26,6 +27,7 @@ import { dealerButtonById, type AvatarRing, type DealerButton } from '@/config/c
 import type { AvatarSpec } from '@/lib/avatar'
 import { useMoney } from '@/lib/useMoney'
 import { cn, formatWinPct } from '@/lib/utils'
+import { HoleCard } from './HoleCard'
 
 /**
  * The player's own furniture — the ring on their avatar and the dealer button
@@ -243,6 +245,7 @@ export function HeroCards({
   discarding,
   marked,
   onToggle,
+  concealed,
 }: {
   hero: Player
   hand: HandState
@@ -258,64 +261,111 @@ export function HeroCards({
   discarding?: boolean
   marked?: readonly number[]
   onToggle?: (index: number) => void
+  /**
+   * A multiplayer table's: the cards are dealt face down, in your card back,
+   * and each turns over when you tap it, and back down on the next tap.
+   * `revealed` holds the indexes face up now. Until all of them are up nothing
+   * under them names the hand.
+   */
+  concealed?: {
+    back: CardBackDesign
+    revealed: readonly number[]
+    onFlip: (index: number) => void
+  }
 }) {
   const folded = hero.status === 'folded'
-  const nickname = nicknameFor(hero.hole)
-  return (
-    <div className={cn('flex flex-col items-center gap-1.5', folded && 'opacity-40')}>
-      {/* Not fanned while you are choosing: overlapping cards are lovely to
-          look at and impossible to tap one of. */}
-      <div className={cn('flex items-end', fanned && !discarding ? '-space-x-6' : 'gap-2')}>
-        {hero.hole.map((card, i) => {
-          const isMarked = discarding && marked?.includes(i)
-          // Key by the card so a new deal re-mounts and replays the animation.
-          const dealt = (
-            <DealtCard
+  const isUp = (i: number) => !concealed || concealed.revealed.includes(i)
+  const allUp = hero.hole.every((_, i) => isUp(i))
+  const nickname = allUp ? nicknameFor(hero.hole) : undefined
+  const row = (
+    // Not fanned while you are choosing: overlapping cards are lovely to look
+    // at and impossible to tap one of.
+    <div className={cn('flex items-end', fanned && !discarding ? '-space-x-6' : 'gap-2')}>
+      {hero.hole.map((card, i) => {
+        const isMarked = discarding && marked?.includes(i)
+        const cardClass = cn(
+          fanned && !discarding && (i === 0 ? '-rotate-3' : 'translate-y-1 rotate-2'),
+          // A dimmed (opacity-40) rounded card with a drop shadow renders a
+          // bright halo along its bottom edge on iOS Safari — the shadow
+          // inverts under fractional opacity. Folded cards don't need a
+          // shadow anyway, so drop it and the artifact goes with it.
+          folded && 'shadow-none dark:shadow-none',
+          // Marked cards drop and fade: the gesture is "push it away",
+          // and it has to read at a glance across five of them.
+          isMarked && 'translate-y-3 opacity-40 saturate-50',
+        )
+        // Key by the card so a new deal re-mounts and replays the animation.
+        const dealt = concealed ? (
+          <HoleCard
+            key={`${card.rank}${card.suit}`}
+            index={i}
+            card={card}
+            size={size}
+            back={concealed.back}
+            faceUp={isUp(i)}
+            onPeeled={isUp(i) ? undefined : () => concealed.onFlip(i)}
+            className={cardClass}
+            faceClassName={cn(folded && 'shadow-none dark:shadow-none')}
+          />
+        ) : (
+          <DealtCard
+            key={`${card.rank}${card.suit}`}
+            index={i}
+            card={card}
+            size={size}
+            className={cardClass}
+          />
+        )
+        const held =
+          !discarding && tactile && !folded ? (
+            <motion.div
               key={`${card.rank}${card.suit}`}
-              index={i}
-              card={card}
-              size={size}
-              className={cn(
-                fanned && !discarding && (i === 0 ? '-rotate-3' : 'translate-y-1 rotate-2'),
-                // A dimmed (opacity-40) rounded card with a drop shadow renders a
-                // bright halo along its bottom edge on iOS Safari — the shadow
-                // inverts under fractional opacity. Folded cards don't need a
-                // shadow anyway, so drop it and the artifact goes with it.
-                folded && 'shadow-none dark:shadow-none',
-                // Marked cards drop and fade: the gesture is "push it away",
-                // and it has to read at a glance across five of them.
-                isMarked && 'translate-y-3 opacity-40 saturate-50',
-              )}
-            />
+              className="relative"
+              // A card you can peel stays put under the pointer: one that rose
+              // to meet it slid out from under the corner you were reaching for.
+              whileHover={concealed ? { zIndex: 1 } : { y: -8, zIndex: 1 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 26 }}
+            >
+              {dealt}
+            </motion.div>
+          ) : (
+            dealt
           )
-          if (!discarding && tactile && !folded)
-            return (
-              <motion.div
-                key={`${card.rank}${card.suit}`}
-                className="relative"
-                whileHover={{ y: -8, zIndex: 1 }}
-                whileTap={{ scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 420, damping: 26 }}
-              >
-                {dealt}
-              </motion.div>
-            )
-          if (!discarding) return dealt
+        // A tap turns this one card over, either way, and only this one.
+        if (concealed && !discarding)
           return (
             <button
               key={`${card.rank}${card.suit}`}
               type="button"
-              onClick={() => onToggle?.(i)}
-              aria-pressed={Boolean(isMarked)}
-              aria-label={`${isMarked ? 'Keep' : 'Throw away'} the ${card.rank}${card.suit}`}
-              className="rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/50"
+              onClick={() => concealed.onFlip(i)}
+              aria-pressed={isUp(i)}
+              aria-label={`${isUp(i) ? 'Hide' : 'Turn over'} card ${i + 1}`}
+              className="relative cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/50"
             >
-              {dealt}
+              {held}
             </button>
           )
-        })}
-        <span className="sr-only">{hand.street}</span>
-      </div>
+        if (!discarding) return held
+        return (
+          <button
+            key={`${card.rank}${card.suit}`}
+            type="button"
+            onClick={() => onToggle?.(i)}
+            aria-pressed={Boolean(isMarked)}
+            aria-label={`${isMarked ? 'Keep' : 'Throw away'} the ${card.rank}${card.suit}`}
+            className="rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/50"
+          >
+            {dealt}
+          </button>
+        )
+      })}
+      <span className="sr-only">{hand.street}</span>
+    </div>
+  )
+  return (
+    <div className={cn('flex flex-col items-center gap-1.5', folded && 'opacity-40')}>
+      {row}
       {/* The nickname's line is always there, empty for a hand without one.
           Only some hands have a name, and a line that came and went moved the
           cards and changed the felt's height from one hand to the next. */}
@@ -363,6 +413,7 @@ export function HeroPanel({
   defaultPage = 0,
   oddsLabel = 'to win',
   hideOdds = false,
+  concealed = false,
   result = null,
   corners,
   face,
@@ -384,6 +435,11 @@ export function HeroPanel({
    */
   hideOdds?: boolean
   /**
+   * Your cards are still face down (a multiplayer table, before you look):
+   * the panel names no hand and gives no odds until they are turned over.
+   */
+  concealed?: boolean
+  /**
    * Chips up or down on the session, worked out the way the stand-up dialog
    * does (`cashOutValue` less what went in). Null where there is none to show:
    * a freeroll, and the review.
@@ -399,7 +455,9 @@ export function HeroPanel({
   face?: React.ReactNode
 }) {
   const money = useMoney()
-  const label = useHandLabel(hero, hand)
+  const handLabel = useHandLabel(hero, hand)
+  const label = concealed ? null : handLabel
+  const noOdds = hideOdds || concealed
   const folded = hero.status === 'folded'
   // The one avatar in the app that is the player's own, so the one that wears
   // the ring. Every other face at the table belongs to somebody in the cast.
@@ -453,7 +511,7 @@ export function HeroPanel({
               )}
               {/* The other page's number, kept quiet, so a glance doesn't need
                   a swipe. */}
-              {equity !== null && !hideOdds && (
+              {equity !== null && !noOdds && (
                 <span className="whitespace-nowrap text-3xs tabular-nums text-muted-foreground">
                   {formatWinPct(equity)} {oddsLabel}
                 </span>
@@ -474,7 +532,7 @@ export function HeroPanel({
                   two-digit percentage squeezed both against the edges. The
                   qualifier lives in the label underneath instead, where there
                   is room for it. */}
-              {!hideOdds && (
+              {!noOdds && (
                 <>
                   <span className="whitespace-nowrap text-2xl font-semibold tabular-nums">
                     {formatWinPct(equity)}
